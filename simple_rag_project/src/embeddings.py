@@ -30,6 +30,16 @@ def generate_embedding(text: str) -> List[float]:
         # Return a dummy embedding or raise an error based on desired behavior
         return []
 
+# --- NEW: Function to be used as Chroma's custom embedding_function ---
+def ollama_embedding_function(texts: List[str]) -> List[List[float]]:
+    """
+    A wrapper function to provide embeddings for a list of texts using Ollama,
+    compatible with ChromaDB's embedding_function signature.
+    """
+    # This calls generate_embedding for each text in the list
+    embeddings = [generate_embedding(text) for text in texts]
+    return embeddings
+
 # Example usage (for testing this module directly)
 if __name__ == "__main__":
     # Note: Ensure Ollama is running and 'bge-base-en' is pulled
