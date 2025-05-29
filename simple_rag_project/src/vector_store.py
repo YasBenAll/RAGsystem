@@ -1,7 +1,13 @@
 # src/vector_store.py
 
+import chromadb
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
+
+# Import the custom embedding function we just created
+from src.embeddings import OllamaEmbeddingFunction # <-- Changed import name
+from src.config import EMBEDDING_MODEL # To pass to ChromaDB's embedding function setup
+
 
 class InMemoryVectorStore:
     """
@@ -57,6 +63,99 @@ class InMemoryVectorStore:
         similarities.sort(key=lambda x: x[1], reverse=True)
 
         return similarities[:top_n]
+
+class PersistentVectorStore:
+    """
+    A vector database using ChromaDB with disk persistence.
+    """
+    def __init__(self, persist_directory: str):
+        self.persist_directory = persist_directory
+        self.client = chromadb.PersistentClient(path=persist_directory)
+
+        # Instantiate your custom embedding function class
+        self.chroma_embedding_function_instance = OllamaEmbeddingFunction() # <-- This creates the instance
+
+        self.collection_name = "rag_knowledge_base"
+        self.collection = self.client.get_or_create_collection(
+            name=self.collection_name,
+            # Pass the *instance* of your custom embedding function
+            # This ensures Chroma knows to use YOUR Ollama function for both add and query
+            embedding_function=self.chroma_embedding_function_instance # <-- Ensure this line is exactly here
+        )
+        print(f"ChromaDB collection '{self.collection_name}' loaded/created at {persist_directory}.")
+
+
+    def add_chunks(self, chunks_with_metadata: List[Tuple[str, Dict[str, Any]]]):
+        """
+        Adds text chunks and their metadata to the ChromaDB collection.
+        ChromaDB automatically generates embeddings using the configured embedding_function.
+
+        Args:
+            chunks_with_metadata (List[Tuple[str, Dict[str, Any]]]):
+                A list of tuples, where each tuple is (chunk_text, metadata_dict).
+        """
+        if not chunks_with_metadata:
+            return
+
+        current_count = self.collection.count()
+        # A more robust ID generation might be needed for real applications
+        ids = [f"doc_{current_count + i}_{hash(chunk_content) % 100000}"
+               for i, (chunk_content, _) in enumerate(chunks_with_metadata)]
+
+        documents = [c[0] for c in chunks_with_metadata]
+        metadatas = [c[1] for c in chunks_with_metadata]
+
+        self.collection.add(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+        print(f"Added {len(documents)} chunks to ChromaDB. Total items: {self.collection.count()}")
+
+
+    def retrieve(self, query_text: str, top_n: int = 3) -> List[Tuple[str, Dict[str, Any], float]]:
+        """
+        Retrieves top_n most relevant chunks from the ChromaDB collection.
+
+        Args:
+            query_text (str): The user's query text.
+            top_n (int): The number of top relevant chunks to retrieve.
+
+        Returns:
+            List[Tuple[str, Dict[str, Any], float]]: A list of (chunk_content, metadata, distance) tuples,
+                                                     sorted by distance (lower is better, meaning more similar).
+        """
+        # ChromaDB will use its configured embedding function to embed the query_text internally for search
+        results = self.collection.query(
+            query_texts=[query_text],
+            n_results=top_n,
+            include=['documents', 'distances', 'metadatas']
+        )
+
+        retrieved = []
+        if results and results['documents']:
+            for i in range(len(results['documents'][0])):
+                doc_content = results['documents'][0][i]
+                metadata = results['metadatas'][0][i]
+                distance = results['distances'][0][i]
+                retrieved.append((doc_content, metadata, distance))
+        return retrieved
+
+    def count(self) -> int:
+        """Returns the number of items in the collection."""
+        return self.collection.count()
+
+    def clear_collection(self):
+        """Removes all items from the collection. Useful for development."""
+        # To clear a collection by name using the client, you use client.delete_collection
+        # Then, you need to get or create it again to have a collection object to work with.
+        self.client.delete_collection(name=self.collection_name)
+        self.collection = self.client.get_or_create_collection(
+            name=self.collection_name,
+            embedding_function=ollama_embedding_function # Pass the custom EF again
+        )
+        print(f"ChromaDB collection '{self.collection_name}' cleared.")
+
 
 # Example usage (for testing this module directly)
 if __name__ == "__main__":

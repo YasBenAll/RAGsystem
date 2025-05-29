@@ -1,2 +1,4 @@
 ollama
 numpy
+chromadb
+pypdf
