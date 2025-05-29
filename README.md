@@ -6,9 +6,6 @@ https://arxiv.org/abs/2401.06800
 Interesting repo's:
 https://sudarshanpoudel.github.io/agenticrag/
 
-Mastering RAG:
-https://galileo.ai/blog/mastering-rag-how-to-architect-an-enterprise-rag-system
-
 https://huggingface.co/blog/ngxson/make-your-own-rag
 
 Components
