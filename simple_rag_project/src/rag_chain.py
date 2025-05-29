@@ -1,29 +1,39 @@
 # src/rag_chain.py
 
-from typing import List, Tuple
-from src.embeddings import generate_embedding
-from src.vector_store import InMemoryVectorStore
+from typing import List, Tuple, Dict, Any # <-- Add Dict, Any
+# Remove InMemoryVectorStore if you had it
+from src.vector_store import PersistentVectorStore # <-- Import the new class
+from src.embeddings import generate_embedding # Still needed for query embedding
 from src.llm_inference import generate_llm_response
-from src.config import TOP_N_RETRIEVAL
+from src.config import TOP_N_RETRIEVAL, CHROMA_PERSIST_DIR, EMBEDDING_MODEL # <-- Import CHROMA_PERSIST_DIR and EMBEDDING_MODEL
 
-def build_and_populate_vector_store(dataset_chunks: List[str]) -> InMemoryVectorStore:
+
+def build_and_populate_vector_store(dataset_chunks: List[str]) -> PersistentVectorStore:
     """
-    Initializes and populates the in-memory vector store with embeddings of dataset chunks.
+    Initializes and populates the persistent vector store with dataset chunks.
+    Only adds chunks if they are not already in the store.
 
     Args:
-        dataset_chunks (List[str]): A list of text chunks from the dataset.
+        dataset_chunks (List[Document]): A list of LangChain Document objects (chunks).
 
     Returns:
-        InMemoryVectorStore: An instance of the populated vector store.
+        PersistentVectorStore: An instance of the populated vector store.
     """
-    print("Building and populating vector store...")
-    vector_store = InMemoryVectorStore()
-    for i, chunk in enumerate(dataset_chunks):
-        embedding = generate_embedding(chunk)
-        if embedding: # Only add if embedding was successfully generated
-            vector_store.add_chunk(chunk, embedding)
-        print(f'  - Processed chunk {i+1}/{len(dataset_chunks)}')
-    print(f"Vector store populated with {len(vector_store.vector_db)} chunks.")
+    print("Initializing persistent vector store...")
+    vector_store = PersistentVectorStore(persist_directory=CHROMA_PERSIST_DIR)
+
+    # Check if the store needs to be populated
+    # This is a simple check; for production, you might need a more robust
+    # versioning or hashing system to detect changes in source documents.
+    if vector_store.count() < len(dataset_chunks):
+        print(f"Populating vector store with {len(dataset_chunks)} new chunks (current count: {vector_store.count()})...")
+        # Prepare chunks for ChromaDB: list of (content, metadata)
+        chunks_for_chroma = [(chunk.page_content, chunk.metadata) for chunk in dataset_chunks]
+        vector_store.add_chunks(chunks_for_chroma)
+        print(f"Vector store populated. Total items: {vector_store.count()}")
+    else:
+        print(f"Vector store already contains {vector_store.count()} chunks. Skipping population.")
+
     return vector_store
 
 def format_retrieved_knowledge(retrieved_chunks: List[Tuple[str, float]]) -> str:
@@ -40,13 +50,13 @@ def format_retrieved_knowledge(retrieved_chunks: List[Tuple[str, float]]) -> str
     knowledge_as_string = '\n'.join(lines_to_join)
     return knowledge_as_string
 
-def run_rag_pipeline(query: str, vector_store: InMemoryVectorStore):
+def run_rag_pipeline(query: str, vector_store: PersistentVectorStore):
     """
     Executes the full RAG pipeline: retrieval, prompt construction, and LLM generation.
 
     Args:
         query (str): The user's question.
-        vector_store (InMemoryVectorStore): The populated vector store instance.
+        vector_store (PersistentVectorStore): The populated vector store instance. # <-- Change type hint
     """
     print(f"\nProcessing query: '{query}'")
 
