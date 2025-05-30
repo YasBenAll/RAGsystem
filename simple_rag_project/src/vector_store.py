@@ -147,16 +147,6 @@ class PersistentVectorStore:
 
     def clear_collection(self):
         """Removes all items from the collection. Useful for development."""
-        # To clear a collection by name using the client, you use client.delete_collection
-        # Then, you need to get or create it again to have a collection object to work with.
-        self.client.delete_collection(name=self.collection_name)
-        self.collection = self.client.get_or_create_collection(
-            name=self.collection_name,
-            embedding_function=ollama_embedding_function # Pass the custom EF again
-        )
-        print(f"ChromaDB collection '{self.collection_name}' cleared.")
-    def clear_collection(self):
-        """Removes all items from the collection. Useful for development."""
         collection_name_to_clear = self.collection_name # Store it before client reset potentially clears it
         embedding_function_to_reuse = self.chroma_embedding_function_instance # Store it
 
