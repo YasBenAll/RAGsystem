@@ -1,3 +1,3 @@
 # RAGsystem
 This repository showcases a simple RAG model implemented using python, ollama, streamlit and chromadb.
-![RAG_system_diagram drawio](https://github.com/user-attachments/assets/d8cee6ff-699f-48f9-90c6-e4d12b335674)
+![RAG_system_diagram drawio](https://github.com/user-attachments/assets/5aa7a6e4-242a-419a-9985-5b4d2d263f46)
