@@ -155,7 +155,49 @@ class PersistentVectorStore:
             embedding_function=ollama_embedding_function # Pass the custom EF again
         )
         print(f"ChromaDB collection '{self.collection_name}' cleared.")
+    def clear_collection(self):
+        """Removes all items from the collection. Useful for development."""
+        collection_name_to_clear = self.collection_name # Store it before client reset potentially clears it
+        embedding_function_to_reuse = self.chroma_embedding_function_instance # Store it
 
+        # Option 1: If client.reset() is too aggressive and deletes everything including other collections
+        # self.client.delete_collection(name=collection_name_to_clear)
+        # self.collection = self.client.get_or_create_collection(
+        #     name=collection_name_to_clear,
+        #     embedding_function=embedding_function_to_reuse # <-- Use the stored instance
+        # )
+        # print(f"ChromaDB collection '{collection_name_to_clear}' cleared and recreated.")
+
+        # Option 2: A more thorough reset of the client if this method is intended to wipe the slate clean for this path
+        # This is generally what you'd want if you are about to delete the directory.
+        # However, the main "Clear Vector Store Cache & Rebuild" in app.py uses shutil.rmtree,
+        # which is even more thorough. This method is for clearing *within* an existing client.
+        # For now, let's assume it's about clearing the specific collection.
+        
+        print(f"Attempting to delete collection: {collection_name_to_clear}")
+        self.client.delete_collection(name=collection_name_to_clear)
+        print(f"Collection '{collection_name_to_clear}' deleted.")
+        
+        print(f"Re-creating collection: {collection_name_to_clear}")
+        self.collection = self.client.get_or_create_collection(
+            name=collection_name_to_clear,
+            embedding_function=embedding_function_to_reuse # <-- CORRECTED
+        )
+        print(f"ChromaDB collection '{collection_name_to_clear}' cleared and re-created.")
+
+    def _reset_client(self):
+        """Resets the underlying ChromaDB client. Useful before directory deletion."""
+        if self.client:
+            print(f"Resetting ChromaDB client for path: {self.persist_directory}")
+            self.client.reset() # This reinitializes the persistent client
+            print("ChromaDB client has been reset.")
+            # After reset, the self.collection object is likely invalid,
+            # so it should be re-established if the vector_store is to be reused.
+            # For directory deletion, this might be the last step for this client instance.
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name, # Use the original name
+                embedding_function=self.chroma_embedding_function_instance
+            )
 
 # Example usage (for testing this module directly)
 if __name__ == "__main__":
