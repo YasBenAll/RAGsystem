@@ -3,3 +3,4 @@ numpy
 chromadb
 pypdf
 streamlit
+pytest
