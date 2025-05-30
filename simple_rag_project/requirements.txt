@@ -1,6 +1,0 @@
-ollama
-numpy
-chromadb
-pypdf
-streamlit
-pytest
