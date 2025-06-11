@@ -24,8 +24,8 @@ def generate_embedding_single(text: str) -> List[float]:
 
     try:
         response = ollama.embed(model=model_name, input=text) # Use 'input'
-        if hasattr(response, 'embeddings') and isinstance(response.embeddings, list): # <--- CHANGE THIS LINE
-            return response.embeddings[0] # <--- IMPORTANT: Access the first (and only) embedding in the list
+        if hasattr(response, 'embeddings') and isinstance(response.embeddings, list):
+            return response.embeddings[0]
         else:
             # If the response object doesn't have the 'embeddings' attribute or it's not a list
             print(f"ERROR: Ollama.embed response object has no 'embeddings' attribute or it's not a list for text: '{text[:50]}...'")
@@ -46,7 +46,7 @@ class OllamaEmbeddingFunction(EmbeddingFunction): # Inherit from EmbeddingFuncti
         # self.model_name = get_embedding_model_name()
         pass # No explicit initialization needed if model_name is always pulled from config
 
-    def __call__(self, input: Documents) -> Embeddings: # Adhere to the __call__ signature
+    def __call__(self, input: Documents) -> Embeddings:
         """
         Embeds a list of texts using Ollama.
 
@@ -58,7 +58,7 @@ class OllamaEmbeddingFunction(EmbeddingFunction): # Inherit from EmbeddingFuncti
         """
         print(f"DEBUG: OllamaEmbeddingFunction __call__ method invoked for {len(input)} texts.")
         embeddings: List[List[float]] = []
-        for i, text in enumerate(input): # Iterate directly over 'input'
+        for i, text in enumerate(input):
             embedding = generate_embedding_single(text) # Call our single embedding helper
             if embedding:
                 embeddings.append(embedding)
