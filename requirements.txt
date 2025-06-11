@@ -4,3 +4,6 @@ chromadb
 pypdf
 streamlit
 pytest
+langchain
+langchain-community
+langchain-ollama
