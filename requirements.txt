@@ -7,3 +7,6 @@ pytest
 langchain
 langchain-community
 langchain-ollama
+fastapi
+uvicorn[standard]
+requests
