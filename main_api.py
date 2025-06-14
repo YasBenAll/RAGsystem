@@ -1,7 +1,10 @@
 # main_api.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
+
+# --- Import the core RAG logic from your existing project ---
+from src.langchain_rag import create_langchain_rag_chain
 
 # --- Pydantic Models for Request and Response ---
 class QueryRequest(BaseModel):
@@ -19,19 +22,38 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# --- Direct Model Loading at Module Level ---
+# This code will run as soon as uvicorn imports this file.
+print("INFO:     Attempting to load RAG Chain at module level...")
+rag_chain = None
+try:
+    rag_chain = create_langchain_rag_chain()
+    print("INFO:     RAG Chain Loaded Successfully.")
+except Exception as e:
+    # If there's any error during model loading, print it.
+    print(f"FATAL:    Failed to load RAG Chain on startup: {e}")
+    # You might want to re-raise the exception or handle it as needed
+    rag_chain = None
+
 @app.post("/ask_agent", response_model=QueryResponse)
 def ask_agent(request: QueryRequest):
     """
-    Endpoint to ask a question to the reasoning agent.
-
-    Takes a JSON with a "question" key and returns a JSON with an "answer" key.
-    
-    (Note: This is currently a mocked endpoint and does not call the real agent yet.)
+    Endpoint to ask a question to the RAG chain.
     """
-    # For now, we just echo back the question in the answer.
-    # In the next step, we will replace this with a real call to our agent.
-    mock_answer = f"You asked: '{request.question}'. The real agent is not connected yet."
-    return QueryResponse(answer=mock_answer)
+    if rag_chain is None:
+        raise HTTPException(status_code=503, detail="RAG Chain is not available. Check server logs for startup errors.")
+    
+    print(f"INFO:     Received question: {request.question}")
+    
+    try:
+        response_data = rag_chain.invoke({"query": request.question})
+        answer = response_data.get('result', 'No answer found in the chain response.')
+    except Exception as e:
+        print(f"ERROR:    Error during RAG chain invocation: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing the request.")
+
+    print(f"INFO:     RAG Chain's answer: {answer}")
+    return QueryResponse(answer=answer)
 
 # A simple root endpoint to check if the server is running
 @app.get("/")
